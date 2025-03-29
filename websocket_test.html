@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>InvenTree WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #messages { 
+            height: 300px; 
+            overflow-y: scroll; 
+            border: 1px solid #ccc; 
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>InvenTree WebSocket Test</h1>
+    
+    <div>
+        <label for="wsUrl">WebSocket URL:</label>
+        <input type="text" id="wsUrl" size="40" value="ws://192.168.0.21:9020" />
+        <button onclick="connectWebSocket()">Connect</button>
+        <button onclick="disconnectWebSocket()">Disconnect</button>
+    </div>
+    
+    <p>Connection status: <span id="status">Disconnected</span></p>
+    
+    <div>
+        <label for="message">Message:</label>
+        <input type="text" id="message" size="40" value='{"type":"ping","message":"Hello"}' />
+        <button onclick="sendMessage()">Send</button>
+        <button onclick="sendPing()">Send Ping</button>
+    </div>
+    
+    <h2>Messages</h2>
+    <div id="messages"></div>
+    
+    <script>
+        let ws = null;
+        
+        function addMessage(type, message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageElem = document.createElement('div');
+            messageElem.className = type;
+            messageElem.textContent = message;
+            messagesDiv.appendChild(messageElem);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function updateStatus(status) {
+            document.getElementById('status').textContent = status;
+        }
+        
+        function connectWebSocket() {
+            if (ws) {
+                addMessage('info', 'Already connected, disconnecting first...');
+                ws.close();
+            }
+            
+            const url = document.getElementById('wsUrl').value;
+            addMessage('info', `Connecting to ${url}...`);
+            
+            try {
+                ws = new WebSocket(url);
+                
+                ws.onopen = function() {
+                    addMessage('success', `Connected to ${url}`);
+                    updateStatus('Connected');
+                };
+                
+                ws.onmessage = function(event) {
+                    addMessage('info', `Received: ${event.data}`);
+                };
+                
+                ws.onerror = function(error) {
+                    addMessage('error', `Error: ${error}`);
+                    updateStatus('Error');
+                };
+                
+                ws.onclose = function() {
+                    addMessage('info', 'Connection closed');
+                    updateStatus('Disconnected');
+                    ws = null;
+                };
+            } catch (error) {
+                addMessage('error', `Connection error: ${error.message}`);
+                updateStatus('Error');
+            }
+        }
+        
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                addMessage('info', 'Disconnected');
+                ws = null;
+            } else {
+                addMessage('info', 'Not connected');
+            }
+        }
+        
+        function sendMessage() {
+            if (!ws) {
+                addMessage('error', 'Not connected');
+                return;
+            }
+            
+            const message = document.getElementById('message').value;
+            addMessage('info', `Sending: ${message}`);
+            ws.send(message);
+        }
+        
+        function sendPing() {
+            if (!ws) {
+                addMessage('error', 'Not connected');
+                return;
+            }
+            
+            const pingMessage = JSON.stringify({
+                type: 'ping',
+                time: new Date().toISOString()
+            });
+            
+            addMessage('info', `Sending ping: ${pingMessage}`);
+            ws.send(pingMessage);
+        }
+    </script>
+</body>
+</html> 

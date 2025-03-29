@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>InvenTree Event Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #events { 
+            height: 400px; 
+            overflow-y: scroll; 
+            border: 1px solid #ccc; 
+            padding: 10px;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+        .event { margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .event-type { font-weight: bold; color: #007bff; }
+        .event-time { color: #6c757d; font-size: 0.9em; }
+        .event-data { margin-top: 5px; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+        .event-parameter { color: #9c27b0; }
+        .event-part { color: #2196f3; }
+        .event-stock { color: #4caf50; }
+        .event-summary { 
+            margin: 5px 0;
+            color: #333;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>InvenTree Event Monitor</h1>
+    
+    <div>
+        <label for="wsUrl">WebSocket URL:</label>
+        <input type="text" id="wsUrl" size="40" value="ws://192.168.0.21:9020" />
+        <button onclick="connectWebSocket()">Connect</button>
+        <button onclick="disconnectWebSocket()">Disconnect</button>
+    </div>
+    
+    <p>Connection status: <span id="status">Disconnected</span></p>
+    
+    <h2>Events</h2>
+    <div id="events"></div>
+    
+    <script>
+        let ws = null;
+        
+        function addEvent(event) {
+            const eventsDiv = document.getElementById('events');
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'event';
+            
+            // Format timestamp
+            const date = new Date(event.timestamp * 1000);
+            const timeStr = date.toLocaleTimeString();
+            
+            // Determine event type and add appropriate styling
+            let eventTypeClass = 'event-type';
+            if (event.event.includes('parameter')) {
+                eventTypeClass += ' event-parameter';
+            } else if (event.event.includes('part')) {
+                eventTypeClass += ' event-part';
+            } else if (event.event.includes('stock')) {
+                eventTypeClass += ' event-stock';
+            }
+            
+            // Format event information
+            let eventHeader = `
+                <div>
+                    <span class="${eventTypeClass}">${event.event || event.type}</span>
+                    <span class="event-time">[${timeStr}]</span>
+                </div>
+            `;
+            
+            // Add summary for parameter events
+            if (event.event.includes('parameter') && event.data.parameter_name) {
+                eventHeader += `
+                    <div class="event-summary">
+                        Parameter: <strong>${event.data.parameter_name}</strong> = ${event.data.parameter_value}
+                        ${event.data.parent_name ? `(for ${event.data.parent_type}: ${event.data.parent_name})` : ''}
+                    </div>
+                `;
+            }
+            
+            eventDiv.innerHTML = eventHeader + `
+                <div class="event-data">
+                    <pre>${JSON.stringify(event.data || {}, null, 2)}</pre>
+                </div>
+            `;
+            
+            eventsDiv.appendChild(eventDiv);
+            eventsDiv.scrollTop = eventsDiv.scrollHeight;
+        }
+        
+        function addMessage(type, message) {
+            const eventsDiv = document.getElementById('events');
+            const messageElem = document.createElement('div');
+            messageElem.className = type;
+            messageElem.textContent = message;
+            eventsDiv.appendChild(messageElem);
+            eventsDiv.scrollTop = eventsDiv.scrollHeight;
+        }
+        
+        function updateStatus(status) {
+            document.getElementById('status').textContent = status;
+        }
+        
+        function connectWebSocket() {
+            if (ws) {
+                addMessage('info', 'Already connected, disconnecting first...');
+                ws.close();
+            }
+            
+            const url = document.getElementById('wsUrl').value;
+            addMessage('info', `Connecting to ${url}...`);
+            
+            try {
+                ws = new WebSocket(url);
+                
+                ws.onopen = function() {
+                    addMessage('success', `Connected to ${url}`);
+                    updateStatus('Connected');
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'event') {
+                            addEvent(data);
+                        } else if (data.type === 'welcome') {
+                            addMessage('success', `Welcome message: ${data.message}`);
+                        } else if (data.type === 'ping') {
+                            // Ignore ping messages to reduce noise
+                        } else {
+                            addMessage('info', `Received: ${event.data}`);
+                        }
+                    } catch (e) {
+                        addMessage('info', `Received: ${event.data}`);
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    addMessage('error', `Error: ${error}`);
+                    updateStatus('Error');
+                };
+                
+                ws.onclose = function() {
+                    addMessage('info', 'Connection closed');
+                    updateStatus('Disconnected');
+                    ws = null;
+                };
+            } catch (error) {
+                addMessage('error', `Connection error: ${error.message}`);
+                updateStatus('Error');
+            }
+        }
+        
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                addMessage('info', 'Disconnected');
+                ws = null;
+            } else {
+                addMessage('info', 'Not connected');
+            }
+        }
+    </script>
+</body>
+</html> 
