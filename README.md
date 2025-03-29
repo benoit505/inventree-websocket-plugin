@@ -24,7 +24,7 @@ A WebSocket server plugin for InvenTree inventory management system that enables
    cp -r inventree-websocket-plugin/websocket /path/to/your/inventree/plugins/
    ```
 
-### Using pip (coming soon)
+### Using pip 
 
 ```bash
 pip install inventree-websocket-plugin
