@@ -7,7 +7,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     author="benoit505",
-    author_email="your.email@example.com",
+    author_email="billiaubenoit@gmail.com",
     url="https://github.com/benoit505/inventree-websocket-plugin",
     packages=find_packages(),
     install_requires=[
